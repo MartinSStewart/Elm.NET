@@ -8,7 +8,7 @@ open Microsoft.FSharp.Quotations
 
 [<EntryPoint>]
 let main argv =
-    let a = Import.result
+    let a = Import.import
     //let rec 
     //    inline a z = b
     //    and 
