@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28010.2036
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Elm.NET", "Elm.NET\Elm.NET.fsproj", "{9897F5EE-C569-4FEE-A946-2525C0E9960F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9897F5EE-C569-4FEE-A946-2525C0E9960F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9897F5EE-C569-4FEE-A946-2525C0E9960F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9897F5EE-C569-4FEE-A946-2525C0E9960F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9897F5EE-C569-4FEE-A946-2525C0E9960F}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E6D2C8D3-A0ED-41E7-AC88-6E1E38DB3B07}
+	EndGlobalSection
+EndGlobal
