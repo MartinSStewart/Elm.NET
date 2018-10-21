@@ -47,7 +47,9 @@ let decodeTopLevelExpose (json : JObject): TopLevelExpose =
         |> (fun a -> a.Value<string>("name"))
         |> FunctionExpose
     | "typeOrAlias" -> 
-        json.Value<string>("typeOrAlias") 
+        json.Value<JObject>("typeOrAlias")  
+        |> (fun a -> a.Value<JToken>("name"))
+        |> decodeString
         |> TypeOrAliasExpose
     | "typeexpose" -> 
         json.Value<JObject>("typeexpose") 
@@ -121,7 +123,10 @@ and decodeTypeAnnotation (json : JObject): TypeAnnotation =
     let moduleType = json.Value<string>("type")
     match moduleType with
     | "generic" ->
-        json.Value<JToken>("generic") |> decodeString |> GenericType 
+        json.Value<JObject>("generic") 
+        |> (fun a -> a.Value<JToken>("value")) 
+        |> decodeString 
+        |> GenericType 
     | "typed" ->
         let typedJson = json.Value<JObject>("typed") 
         ( typedJson.Value<JObject>("moduleNameAndName") |> decodeNode decodeModuleNameAndName
@@ -131,13 +136,20 @@ and decodeTypeAnnotation (json : JObject): TypeAnnotation =
     | "unit" -> 
         Unit
     | "tupled" ->
-        json.Value<JArray>("tupled") |> decodeList (decodeNode decodeTypeAnnotation) |> Tupled
+        json.Value<JObject>("tupled") 
+        |> (fun a -> a.Value<JArray>("values")) 
+        |> decodeList (decodeNode decodeTypeAnnotation) 
+        |> Tupled
     | "record" -> 
         json.Value<JObject>("record") |> decodeRecordDefinition |> Record
     //| "genericRecord" -> 
     //    json.Value<JObject>("genericRecord") |> decodeEffectModuleData |> GenericRecord
-    //| "function" -> 
-    //    json.Value<JObject>("function") |> decodeEffectModuleData |> FunctionTypeAnnotation
+    | "function" -> 
+        let functionJson = json.Value<JObject>("function")
+        ( functionJson.Value<JObject>("left") |> decodeNode decodeTypeAnnotation
+        , functionJson.Value<JObject>("right") |> decodeNode decodeTypeAnnotation
+        )
+        |> FunctionTypeAnnotation
     | _ -> raise (new NotImplementedException())
 
 let decodeSignature (json : JObject): Signature =
@@ -157,6 +169,11 @@ let decodeHex (json : JToken): int64 =
 let decodeDouble (json : JToken): double =
     json.Value<double>()
 
+let decodeQualifiedNameRef (json : JObject): QualifiedNameRef =
+    { moduleName = json.Value<JArray>("moduleName") |> decodeList decodeString
+    ; name = json.Value<JToken>("name") |> decodeString 
+    }
+
 let rec decodePattern (json : JObject): Pattern =
     let moduleType = json.Value<string>("type")
     match moduleType with
@@ -167,46 +184,94 @@ let rec decodePattern (json : JObject): Pattern =
     | "hex" -> json.Value<JToken>("hex") |> decodeHex |> HexPattern
     | "int" -> json.Value<JToken>("int") |> decodeInt |> IntPattern
     | "float" -> json.Value<JToken>("float") |> decodeDouble |> FloatPattern
-    | "tuple" -> json.Value<JArray>("tuple") |> decodeList (decodeNode decodePattern) |> TuplePattern
-    | "record" -> json.Value<JArray>("record") |> decodeList (decodeNode decodeString) |> RecordPattern
+    | "tuple" -> 
+        json.Value<JToken>("tuple") 
+        |> (fun a -> a.Value<JArray>("value")) 
+        |> decodeList (decodeNode decodePattern) 
+        |> TuplePattern
+    | "record" -> 
+        json.Value<JObject>("record") 
+        |> (fun a -> a.Value<JArray>("value")) 
+        |> decodeList (decodeNode decodeString) 
+        |> RecordPattern
     //| "uncons" -> json.Value<JObject>("uncons") |> decodeList (decodeNode decodeString) |> UnConsPattern
     | "list" -> json.Value<JArray>("list") |> decodeList (decodeNode decodePattern) |> ListPattern
-    | "var" -> json.Value<JToken>("var") |> decodeString |> VarPattern
-    //| "named" -> NamedPattern of QualifiedNameRef * List<Node<Pattern>>
+    | "var" -> json.Value<JToken>("var") |> (fun varJson -> varJson.Value<JToken>("value")) |> decodeString |> VarPattern
+    | "named" -> 
+        let namedJson = json.Value<JObject>("named")
+        ( namedJson.Value<JObject>("qualified") |> decodeQualifiedNameRef
+        , namedJson.Value<JArray>("patterns") |> decodeList (decodeNode decodePattern)
+        )
+        |> NamedPattern
     //| "as" -> AsPattern of Node<Pattern> * Node<string>
-    | "value" -> json.Value<JObject>("var") |> decodeNode decodePattern |> ParenthesizedPattern
+    | "parentisized" -> 
+        json.Value<JObject>("parentisized") 
+        |> (fun a -> a.Value<JObject>("value")) 
+        |> decodeNode decodePattern 
+        |> ParenthesizedPattern
+    | _ -> raise (new NotImplementedException())
+
+let decodeInfixDirection (json : JToken): InfixDirection =
+    match decodeString json with
+    | "left" -> Left
+    | "right" -> Right
+    | "non" -> Non
     | _ -> raise (new NotImplementedException())
 
 let rec decodeExpression (json : JObject): Expression =
     let moduleType = json.Value<string>("type")
     match moduleType with
     | "unit" -> UnitExpr
-    | "application" -> json.Value<JArray>("list") |> decodeList (decodeNode decodeExpression) |> Application
-    //| "operatorapplication" -> OperatorApplication of
-    //      string *
-    //      InfixDirection *
-    //      Node<Expression> *
-    //      Node<Expression>
-    //| "functionOrValue" -> FunctionOrValue of ModuleName * string
-    //| "ifBlock" -> IfBlock of Node<Expression> * Node<Expression> * Node<Expression>
+    | "application" -> json.Value<JArray>("application") |> decodeList (decodeNode decodeExpression) |> Application
+    | "operatorapplication" -> 
+        let operatorApplicationJson = json.Value<JObject>("operatorapplication")
+        ( operatorApplicationJson.Value<JToken>("operator") |> decodeString
+        , operatorApplicationJson.Value<JToken>("direction") |> decodeInfixDirection
+        , operatorApplicationJson.Value<JObject>("left") |> decodeNode decodeExpression
+        , operatorApplicationJson.Value<JObject>("right") |> decodeNode decodeExpression
+        )
+        |> OperatorApplication
+    | "functionOrValue" -> 
+        let functionOrValueJson = json.Value<JObject>("functionOrValue")
+        ( functionOrValueJson.Value<JArray>("moduleName") |> decodeModuleName
+        , functionOrValueJson.Value<JToken>("name") |> decodeString
+        )
+        |> FunctionOrValue
+    | "ifBlock" -> 
+        let ifBlockJson = json.Value<JObject>("ifBlock")
+        ( ifBlockJson.Value<JObject>("clause") |> decodeNode decodeExpression
+        , ifBlockJson.Value<JObject>("then") |> decodeNode decodeExpression
+        , ifBlockJson.Value<JObject>("else") |> decodeNode decodeExpression
+        )
+        |> IfBlock
     | "prefixoperator" -> json.Value<JToken>("prefixoperator") |> decodeString |> PrefixOperator
     | "operator" -> json.Value<JToken>("operator") |> decodeString |> Operator
     | "integer" -> json.Value<JToken>("integer") |> decodeInt |> Integer
-    | "hex" -> json.Value<JToken>("integer") |> decodeHex |> Hex
+    | "hex" -> json.Value<JToken>("hex") |> decodeHex |> Hex
     | "float" -> json.Value<JToken>("float") |> decodeDouble |> Floatable
     | "negation" -> json.Value<JObject>("negation") |> decodeNode decodeExpression |> Negation
     | "literal" -> json.Value<JToken>("literal") |> decodeString |> Literal
     | "charLiteral" -> json.Value<JToken>("charLiteral") |> decodeChar |> CharLiteral
     | "tupled" -> json.Value<JArray>("tupled") |> decodeList (decodeNode decodeExpression) |> TupledExpression
-    | "parenthesized" -> json.Value<JObject>("tupled") |> decodeNode decodeExpression |> ParenthesizedExpression
+    | "parenthesized" -> json.Value<JObject>("parenthesized") |> decodeNode decodeExpression |> ParenthesizedExpression
     | "let" -> json.Value<JObject>("let") |> decodeLetBlock |> LetExpression
     | "case" -> json.Value<JObject>("case") |> decodeCaseBlock |> CaseExpression
     | "lambda" -> json.Value<JObject>("lambda") |> decodeLambda |> LambdaExpression
-    //| "recordAccess" -> json.Value<JArray>("recordAccess") |> decodeList (decodeNode decodeRecordSetter) |> RecordAccess
+    | "recordAccess" -> 
+        let recordAccessJson = json.Value<JObject>("recordAccess")
+        ( recordAccessJson.Value<JObject>("expression") |> decodeNode decodeExpression
+        , recordAccessJson.Value<JObject>("name") |> decodeNode decodeString
+        )
+        |> RecordAccess
     | "list" -> json.Value<JArray>("list") |> decodeList (decodeNode decodeExpression) |> ListExpr
-    //| "record" -> json.Value<JObject>("record") |> decodeLetBlock |> RecordExpr of Node<Expression> * Node<string>
-    | "recordAccessFunction" -> json.Value<JObject>("recordAccessFunction") |> decodeString |> RecordAccessFunction
-    //| "recordUpdate" -> json.Value<JObject>("recordUpdate") |> decodeLetBlock |> RecordUpdateExpression of Node<string> * List<Node<RecordSetter>>
+    | "record" -> json.Value<JArray>("record") |> decodeList (decodeNode decodeRecordSetter) |> RecordExpr
+    | "recordAccessFunction" -> json.Value<JToken>("recordAccessFunction") |> decodeString |> RecordAccessFunction
+    | "recordUpdate" -> 
+        let recordUpdateJson = json.Value<JObject>("recordUpdate") 
+        ( recordUpdateJson.Value<JObject>("name") |> decodeNode decodeString
+        , recordUpdateJson.Value<JArray>("updates") |> decodeList (decodeNode decodeRecordSetter)
+        )
+        |> RecordUpdateExpression
     | "glsl" -> json.Value<JObject>("glsl") |> decodeString |> GLSLExpression
     | _ -> raise (new NotImplementedException())
 
@@ -214,7 +279,12 @@ and decodeLetDeclaration (json : JObject): LetDeclaration =
     let moduleType = json.Value<string>("type")
     match moduleType with
     | "function" -> json.Value<JObject>("function") |> decodeFunction |> LetFunction
-    //| "destructuring" -> json.Value<JObject>("destructuring") |> decodeFunction |> LetDestructuring of Node<Pattern> * Node<Expression>
+    | "destructuring" -> 
+        let destructuringJson = json.Value<JObject>("destructuring")
+        ( destructuringJson.Value<JObject>("pattern") |> decodeNode decodePattern
+        , destructuringJson.Value<JObject>("expression") |> decodeNode decodeExpression
+        )
+        |> LetDestructuring
     | _ -> raise (new NotImplementedException())
 
 and decodeLetBlock (json : JObject): LetBlock =
@@ -234,8 +304,10 @@ and decodeFunction (json : JObject): Function =
     ; declaration = json.Value<JObject>("declaration") |> decodeNode decodeFunctionImplementation
     }
 
-and decodeCase (json : JArray): Case =
-    raise (new NotImplementedException())
+and decodeCase (json : JObject): Case =
+    ( json.Value<JObject>("pattern") |> decodeNode decodePattern
+    , json.Value<JObject>("expression") |> decodeNode decodeExpression
+    )
 
 and decodeCases (json : JArray): Cases =
     decodeList decodeCase json
@@ -246,12 +318,14 @@ and decodeCaseBlock (json : JObject): CaseBlock =
     }
 
 and decodeLambda (json : JObject): Lambda =
-    { args = json.Value<JArray>("args") |> decodeList (decodeNode decodePattern)
+    { args = json.Value<JArray>("patterns") |> decodeList (decodeNode decodePattern)
     ; expression = json.Value<JObject>("expression") |> decodeNode decodeExpression
     }
 
 and decodeRecordSetter (json : JObject): RecordSetter =
-    raise (new NotImplementedException())
+    ( json.Value<JObject>("field") |> decodeNode decodeString
+    , json.Value<JObject>("expression") |> decodeNode decodeExpression
+    )
 
 let decodeTypeAlias (json : JObject): TypeAlias =
     { documentation = json.Value<JObject>("documentation") |> decodeOption (decodeNode decodeDocumentation)

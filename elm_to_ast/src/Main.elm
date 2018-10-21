@@ -5,47 +5,61 @@ import Elm.Parser as Parser
 import Elm.Processing as Processing
 import Elm.Syntax.File as File
 import Html exposing (Html, button, div, text)
+import Html.Attributes exposing (style, type_)
 import Html.Events exposing (onClick)
 import Json.Encode as Encode
 
 
 type alias Model =
-    {}
+    { fileText : Maybe String }
 
 
 initialModel : Model
 initialModel =
-    {}
+    { fileText = Nothing }
 
 
 type Msg
-    = NoOp
+    = TextChanged String
 
 
 update : Msg -> Model -> Model
 update msg model =
-    model
-
-
-textFile =
-    "module Test exposing (initialModel)\n\ntype alias Model =\n    { value : Int }\n\n\ninitialModel : Model\ninitialModel =\n    { value = 5 }\n\n\ntype Msg\n    = NoOp\n\n\nupdate : Msg -> Model -> Model\nupdate msg model =\n    model"
+    case msg of
+        TextChanged newText ->
+            { model | fileText = Just newText }
 
 
 view : Model -> Html Msg
 view model =
     let
-        result =
-            Parser.parse textFile
-    in
-    case result of
-        Ok rawFile ->
-            Processing.process Processing.init rawFile
-                |> File.encode
-                |> Encode.encode 4
-                |> text
+        output =
+            case model.fileText of
+                Just text ->
+                    case Parser.parse text of
+                        Ok rawFile ->
+                            Processing.process Processing.init rawFile
+                                |> File.encode
+                                |> Encode.encode 4
 
-        Err error ->
-            text "Error"
+                        Err error ->
+                            "Error"
+
+                Nothing ->
+                    ""
+    in
+    div
+        []
+        [ div []
+            [ Html.textarea
+                [ style "width" "600px"
+                , style "height" "500px"
+                , Html.Events.onInput TextChanged
+                ]
+                []
+            ]
+        , text output
+        ]
 
 
 main : Program () Model Msg
