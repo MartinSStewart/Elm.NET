@@ -86,13 +86,13 @@ and RecordDefinition =
         List<Node<RecordField>>
 
 and TypeAnnotation
-        = GenericType of string
-        | Typed of Node<(ModuleName * string)> * List<Node<TypeAnnotation>>
-        | Unit
-        | Tupled of List<Node<TypeAnnotation>>
-        | Record of RecordDefinition
-        | GenericRecord of Node<string> * Node<RecordDefinition>
-        | FunctionTypeAnnotation of Node<TypeAnnotation> * Node<TypeAnnotation>
+    = GenericType of string
+    | Typed of Node<(ModuleName * string)> * List<Node<TypeAnnotation>>
+    | Unit
+    | Tupled of List<Node<TypeAnnotation>>
+    | Record of RecordDefinition
+    | GenericRecord of Node<string> * Node<RecordDefinition>
+    | FunctionTypeAnnotation of Node<TypeAnnotation> * Node<TypeAnnotation>
 
 type ValueConstructor =
     { name : Node<string>

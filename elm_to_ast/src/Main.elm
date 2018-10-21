@@ -28,7 +28,7 @@ update msg model =
 
 
 textFile =
-    "module Test exposing (initialModel)\n\ntype alias Model =\n    {}\n\n\ninitialModel : Model\ninitialModel =\n    {}\n\n\ntype Msg\n    = NoOp\n\n\nupdate : Msg -> Model -> Model\nupdate msg model =\n    model"
+    "module Test exposing (initialModel)\n\ntype alias Model =\n    { value : Int }\n\n\ninitialModel : Model\ninitialModel =\n    { value = 5 }\n\n\ntype Msg\n    = NoOp\n\n\nupdate : Msg -> Model -> Model\nupdate msg model =\n    model"
 
 
 view : Model -> Html Msg
