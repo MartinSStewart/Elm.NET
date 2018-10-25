@@ -23,3 +23,9 @@ let ``Decode simple Elm AST json`` () =
     let result = ExampleAst.json |> import 
      
     Assert.Equal(expected, result)
+
+[<Fact>]
+let ``Generate F# code`` () =
+    let result = ExampleAst.json |> import  |> TransformAst.file
+
+    0

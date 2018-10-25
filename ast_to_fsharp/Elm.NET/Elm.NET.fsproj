@@ -6,8 +6,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Helper.fs" />
     <Compile Include="ElmAst.fs" />
     <Compile Include="Import.fs" />
+    <Compile Include="TransformAst.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
