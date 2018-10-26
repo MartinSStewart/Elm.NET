@@ -54,7 +54,7 @@ let rec patternText (pattern: Pattern): string =
     | AsPattern (a, b) -> ""
     | ParenthesizedPattern a -> ""
 
-let declarationPrefix (isFirst: bool) (isPrivate: bool) = 
+let letPrefix (isFirst: bool) (isPrivate: bool) = 
     let letText = 
         if isFirst then
             "let rec "
@@ -68,16 +68,44 @@ let declarationPrefix (isFirst: bool) (isPrivate: bool) =
             ""
     letText + privateText
 
+let typePrefix (isFirst: bool) (isPrivate: bool) = 
+    let typeText = 
+        if isFirst then
+            "type rec "
+        else
+            "and "
+        
+    let privateText = 
+        if isPrivate then
+            "private "
+        else 
+            ""
+    typeText + privateText
 
 let ``functionText`` (column: int) (isFirst: bool) (isPrivate: bool) (``function``: Function): string =
     let implementation = ``function``.declaration |> getNodeValue 
     let functionName = implementation.name |> getNodeValue
-    let arguments = implementation.arguments |> List.map (getNodeValue >> patternText >> Helper.flip (+) " ") |> String.concat ""
+    let arguments = implementation.arguments 
+                    |> List.map (getNodeValue >> patternText >> Helper.flip (+) " ") 
+                    |> String.concat ""
 
-    declarationPrefix isFirst isPrivate + functionName + " " + arguments + "=" + "\n"
+    letPrefix isFirst isPrivate + functionName + " " + arguments + "=" + "\n"
 
+let recordDeclarationText (isFirst: bool) (isPrivate: bool) (typeAlias: TypeAlias): string =
+    typePrefix isFirst isPrivate
 
 let declarationsText (exposing: Exposing) (declaration: Declaration List): string = 
+    let types = 
+        declaration
+        |> List.indexed
+        |> Helper.filterMap 
+            (fun (index, decl) -> 
+                match decl with
+                | AliasDeclaration alias -> alias |> recordDeclarationText (index = 0) true |> Some
+                | CustomTypeDeclaration customType -> Some ""
+                | _ -> None)
+        |> String.concat "\n\n"
+
     let functions = 
         declaration
         |> Helper.filterMap 
@@ -88,6 +116,8 @@ let declarationsText (exposing: Exposing) (declaration: Declaration List): strin
         |> List.indexed
         |> List.map (fun (index, func) -> functionText 0 (index = 0) true func)
         |> String.concat "\n\n"
+    types + "\n" +
+    "\n" +
     functions
 
 
