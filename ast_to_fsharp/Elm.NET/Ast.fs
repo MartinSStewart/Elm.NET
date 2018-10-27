@@ -194,10 +194,45 @@ let fromInfixDirection (infixDirection: ElmAst.InfixDirection): InfixDirection =
     | ElmAst.Right -> Right
     | ElmAst.Non -> Non
 
-let rec fromExpression (expression: ElmAst.Expression): Expression = 
+let fromQualifiedNameRef (qualifiedNameRef: ElmAst.QualifiedNameRef): QualifiedNameRef =
+    { moduleName = qualifiedNameRef.moduleName
+    ; name = qualifiedNameRef.name
+    }
+
+let rec fromPattern (pattern: ElmAst.Pattern): Pattern =
+    match pattern with
+    | ElmAst.AllPattern -> AllPattern
+    | ElmAst.UnitPattern -> UnitPattern
+    | ElmAst.CharPattern a -> CharPattern a
+    | ElmAst.StringPattern a -> StringPattern a
+    | ElmAst.IntPattern a -> IntPattern a
+    | ElmAst.HexPattern a -> HexPattern a
+    | ElmAst.FloatPattern a -> FloatPattern a
+    | ElmAst.TuplePattern a -> a |> List.map (nodeValue >> fromPattern) |> TuplePattern
+    | ElmAst.RecordPattern a -> a |> List.map nodeValue |> RecordPattern
+    | ElmAst.UnConsPattern (a, b) -> 
+        UnConsPattern
+            ( a |> nodeValue |> fromPattern
+            , b |> nodeValue |> fromPattern
+            )
+    | ElmAst.ListPattern a -> a |> List.map (nodeValue >> fromPattern) |> ListPattern
+    | ElmAst.VarPattern a -> VarPattern a
+    | ElmAst.NamedPattern (a, b) -> 
+        NamedPattern
+            ( fromQualifiedNameRef a
+            , b |> List.map (nodeValue >> fromPattern)
+            )
+    | ElmAst.AsPattern (a, b) -> 
+        AsPattern 
+            ( a |> nodeValue |> fromPattern
+            , b |> nodeValue
+            ) 
+    | ElmAst.ParenthesizedPattern a -> a |> nodeValue |> fromPattern |> ParenthesizedPattern
+
+and fromExpression (expression: ElmAst.Expression): Expression = 
     match expression with
     | ElmAst.UnitExpr -> UnitExpr
-    | ElmAst.Application a -> UnitExpr
+    | ElmAst.Application a -> a |> List.map (nodeValue >> fromExpression) |> Application
     | ElmAst.OperatorApplication (a, b, c, d) -> 
         OperatorApplication 
             ( a
@@ -222,27 +257,65 @@ let rec fromExpression (expression: ElmAst.Expression): Expression =
     | ElmAst.CharLiteral a -> CharLiteral a
     | ElmAst.TupledExpression a -> a |> List.map (nodeValue >> fromExpression) |> TupledExpression
     | ElmAst.ParenthesizedExpression a -> a |> nodeValue |> fromExpression |> ParenthesizedExpression
-    | ElmAst.LetExpression a -> UnitExpr
-    | ElmAst.CaseExpression a -> UnitExpr
-    | ElmAst.LambdaExpression a -> UnitExpr
-    | ElmAst.RecordExpr a -> UnitExpr
-    | ElmAst.ListExpr a -> UnitExpr
+    | ElmAst.LetExpression a -> a |> fromLetBlock |> LetExpression
+    | ElmAst.CaseExpression a -> a |> fromCaseBlock |> CaseExpression
+    | ElmAst.LambdaExpression a -> a |> fromLambda |> LambdaExpression
+    | ElmAst.RecordExpr a -> a |> List.map (nodeValue >> fromRecordSetter) |> RecordExpr
+    | ElmAst.ListExpr a -> a |> List.map (nodeValue >> fromExpression) |> ListExpr
     | ElmAst.RecordAccess (a, b) -> 
         RecordAccess 
             ( a |> nodeValue |> fromExpression
             , b |> nodeValue
             )
     | ElmAst.RecordAccessFunction a -> RecordAccessFunction a
-    | ElmAst.RecordUpdateExpression (a, b) -> UnitExpr
+    | ElmAst.RecordUpdateExpression (a, b) -> 
+        RecordUpdateExpression
+            ( a |> nodeValue
+            , b |> List.map (nodeValue >> fromRecordSetter)
+            )
     | ElmAst.GLSLExpression a -> GLSLExpression a
 
-let fromFunctionImplementation (functionImplementation: ElmAst.FunctionImplementation): FunctionImplementation =
+and fromRecordSetter ((fieldName, expression): ElmAst.RecordSetter): RecordSetter = 
+    ( nodeValue fieldName
+    , expression |> nodeValue |> fromExpression
+    )
+
+and fromLambda (lambda: ElmAst.Lambda): Lambda = 
+    { args = lambda.args |> List.map (nodeValue >> fromPattern)
+    ; expression = lambda.expression |> nodeValue |> fromExpression
+    }
+
+and fromCase ((pattern, expression): ElmAst.Case): Case =
+    (pattern |> nodeValue |> fromPattern
+    , expression |> nodeValue |> fromExpression
+    )
+
+and fromCaseBlock (caseBlock: ElmAst.CaseBlock): CaseBlock = 
+    { expression = caseBlock.expression |> nodeValue |> fromExpression
+    ; cases = caseBlock.cases |> List.map fromCase
+    }
+
+and fromLetDeclaration (letDeclaration: ElmAst.LetDeclaration): LetDeclaration = 
+    match letDeclaration with
+    | ElmAst.LetFunction a -> a |> fromFunction |> LetFunction
+    | ElmAst.LetDestructuring (pattern, expression) -> 
+        LetDestructuring 
+            ( pattern |> nodeValue |> fromPattern
+            , expression |> nodeValue |> fromExpression
+            )
+
+and fromLetBlock (letExpression: ElmAst.LetBlock): LetBlock =
+    { declarations = letExpression.declarations |> List.map (nodeValue >> fromLetDeclaration)
+    ; expression = letExpression.expression |> nodeValue |> fromExpression
+    }
+
+and fromFunctionImplementation (functionImplementation: ElmAst.FunctionImplementation): FunctionImplementation =
     { name = functionImplementation.name |> nodeValue
     ; arguments = []
     ; expression = functionImplementation.expression |> nodeValue |> fromExpression
     }
 
-let fromFunction (``function``: ElmAst.Function): Function =
+and fromFunction (``function``: ElmAst.Function): Function =
     { documentation = ``function``.documentation |> Option.map nodeValue
     ; declaration = ``function``.declaration |> nodeValue |> fromFunctionImplementation
     }
@@ -257,13 +330,23 @@ let rec fromTypeAnnotation (typeAnnotation: ElmAst.TypeAnnotation): TypeAnnotati
             )
     | ElmAst.Unit -> Unit
     | ElmAst.Tupled a -> a |> List.map (nodeValue >> fromTypeAnnotation) |> Tupled 
-    | ElmAst.Record a -> Unit
-    | ElmAst.GenericRecord (a, b) -> Unit
+    | ElmAst.Record a -> a |> fromRecordDefinition |> Record
+    | ElmAst.GenericRecord (a, b) -> 
+        GenericRecord
+            ( nodeValue a
+            , b |> nodeValue |> fromRecordDefinition
+            )
     | ElmAst.FunctionTypeAnnotation (a, b) -> 
         FunctionTypeAnnotation 
             ( a |> nodeValue |> fromTypeAnnotation
             , b |> nodeValue |> fromTypeAnnotation
             )
+ 
+and fromRecordField ((fieldName, typeAnnotation): ElmAst.RecordField): RecordField =
+    (nodeValue fieldName, typeAnnotation |> nodeValue |> fromTypeAnnotation)
+
+and fromRecordDefinition (recordDefinition: ElmAst.RecordDefinition): RecordDefinition = 
+    recordDefinition |> List.map (nodeValue >> fromRecordField)
 
 let fromTypeAlias (alias: ElmAst.TypeAlias): TypeAlias =
     { documentation = alias.documentation |> Option.map nodeValue
