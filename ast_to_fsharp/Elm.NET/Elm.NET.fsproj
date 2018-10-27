@@ -8,8 +8,9 @@
   <ItemGroup>
     <Compile Include="Helper.fs" />
     <Compile Include="ElmAst.fs" />
+    <Compile Include="Ast.fs" />
     <Compile Include="Import.fs" />
-    <Compile Include="TransformAst.fs" />
+    <Compile Include="Formatter.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 

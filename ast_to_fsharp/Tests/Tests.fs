@@ -4,7 +4,6 @@ open System
 open Xunit
 open Import
 open ElmAst
-open System.Resources
 
 [<Fact>]
 let ``Decode simple Elm AST json`` () =
@@ -26,6 +25,10 @@ let ``Decode simple Elm AST json`` () =
 
 [<Fact>]
 let ``Generate F# code`` () =
-    let result = ExampleAst.json |> import  |> TransformAst.file
+    let result = 
+        ExampleAst.json 
+        |> import 
+        |> Ast.fromFile 
+        |> Formatter.fileText
 
     0
