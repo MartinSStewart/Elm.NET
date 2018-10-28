@@ -1,71 +1,75 @@
-module Main exposing (main)
+port module Main exposing (main)
 
 import Browser
 import Elm.Parser as Parser
 import Elm.Processing as Processing
 import Elm.Syntax.File as File
-import Html exposing (Html, button, div, text)
-import Html.Attributes exposing (style, type_)
-import Html.Events exposing (onClick)
+import Html
+import Json.Decode as Decode
 import Json.Encode as Encode
 
 
-type alias Model =
-    { fileText : Maybe String }
+type alias Files =
+    List String
 
 
-initialModel : Model
-initialModel =
-    { fileText = Nothing }
+type alias Response =
+    Maybe (List File.File)
 
 
-type Msg
-    = TextChanged String
+port response : Encode.Value -> Cmd msg
 
 
-update : Msg -> Model -> Model
-update msg model =
-    case msg of
-        TextChanged newText ->
-            { model | fileText = Just newText }
-
-
-view : Model -> Html Msg
-view model =
+parseFiles : Files -> Response
+parseFiles codeFiles =
     let
-        output =
-            case model.fileText of
-                Just text ->
-                    case Parser.parse text of
-                        Ok rawFile ->
-                            Processing.process Processing.init rawFile
-                                |> File.encode
-                                |> Encode.encode 4
-
-                        Err error ->
-                            "Error"
-
-                Nothing ->
-                    ""
+        rawFiles =
+            codeFiles
+                |> List.map Parser.parse
+                |> List.filterMap Result.toMaybe
     in
-    div
-        []
-        [ div []
-            [ Html.textarea
-                [ style "width" "600px"
-                , style "height" "500px"
-                , Html.Events.onInput TextChanged
-                ]
-                []
-            ]
-        , text output
-        ]
+    if List.length rawFiles == List.length codeFiles then
+        rawFiles
+            |> List.foldl
+                (\a b -> Processing.addFile a b)
+                Processing.init
+            |> (\a -> List.map (Processing.process a) rawFiles)
+            |> Just
+
+    else
+        Nothing
 
 
-main : Program () Model Msg
+encodeResponse : Response -> Encode.Value
+encodeResponse a =
+    case a of
+        Just b ->
+            Encode.list File.encode b
+
+        Nothing ->
+            Encode.null
+
+
+decodeFlags : Decode.Decoder Files
+decodeFlags =
+    Decode.list Decode.string
+
+
+main : Program Decode.Value () ()
 main =
-    Browser.sandbox
-        { init = initialModel
-        , view = view
-        , update = update
+    Browser.element
+        { init =
+            \fileText ->
+                ( ()
+                , fileText
+                    |> Decode.decodeValue decodeFlags
+                    |> Result.toMaybe
+                    |> Maybe.map parseFiles
+                    |> Maybe.withDefault Nothing
+                    |> encodeResponse
+                    |> response
+                )
+        , view = \_ -> Html.div [] []
+        , update = \_ _ -> ( (), Cmd.none )
+        , subscriptions = \_ -> Sub.none
         }
