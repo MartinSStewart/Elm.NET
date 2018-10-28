@@ -10,8 +10,15 @@ open System
 let offsetText (column: int) =
     String.replicate column " "
 
+let tab = "    "
+
 let moduleNameText (moduleName: ModuleName): string = 
     moduleName |> String.concat "." 
+    
+let documentationText (documentation: Documentation): string = 
+    "/// <summary>\n" +
+    "/// " + documentation + "\n" +
+    "/// </summary>"
 
 let rec patternText (pattern: Pattern): string =
     match pattern with
@@ -35,7 +42,7 @@ let rec patternText (pattern: Pattern): string =
     | AsPattern (a, b) -> ""
     | ParenthesizedPattern a -> ""
 
-let letPrefix (isFirst: bool) (isPrivate: bool) = 
+let letPrefix (isFirst: bool) (isExposed: bool) = 
     let letText = 
         if isFirst then
             "let rec "
@@ -43,13 +50,13 @@ let letPrefix (isFirst: bool) (isPrivate: bool) =
             "and "
         
     let privateText = 
-        if isPrivate then
-            "private "
-        else 
+        if isExposed then
             ""
+        else 
+            "private "
     letText + privateText
 
-let typePrefix (isFirst: bool) (isPrivate: bool) = 
+let typePrefix (isFirst: bool) (isExposed: bool) = 
     let typeText = 
         if isFirst then
             "type rec "
@@ -57,29 +64,80 @@ let typePrefix (isFirst: bool) (isPrivate: bool) =
             "and "
         
     let privateText = 
-        if isPrivate then
-            "private "
-        else 
+        if isExposed then
             ""
+        else 
+            "private "
     typeText + privateText
 
 let ``functionText`` (column: int) (``function``: Function): string =
     let implementation = ``function``.declaration
     let functionName = implementation.name
-    let arguments = implementation.arguments 
-                    |> List.map (patternText >> Helper.flip (+) " ") 
-                    |> String.concat ""
+    let arguments = 
+        implementation.arguments 
+        |> List.map (patternText >> Helper.flip (+) " ") 
+        |> String.concat ""
 
-    functionName + " " + arguments + "=" + "\n"
+    functionName + " " + arguments + "=\n"
 
-let recordDeclarationText (isFirst: bool) (isPrivate: bool) (typeAlias: TypeAlias): string =
-    typePrefix isFirst isPrivate
+let rec typeAnnotationText (typeAnnotation: TypeAnnotation): string =
+    match typeAnnotation with
+    | GenericType a -> a
+    | Typed ((a, b), c) -> 
+        let innerType = 
+            if c.IsEmpty then
+                ""
+            else
+                c |> List.map typeAnnotationText |> String.concat ", " |> (fun item -> "<" + item + ">")
+
+        let outerType = 
+            List.append a [ b ] |> String.concat "."
+        outerType + innerType
+    | Unit -> "()"
+    | Tupled a -> 
+        a 
+        |> List.map typeAnnotationText 
+        |> String.concat "\n, " 
+        |> (fun b -> "( " + b + ")")
+    | Record a -> 
+        let recordFields = 
+            a |> List.map recordFieldText |> String.concat ("\n" + tab + ",")
+
+        tab + "{ " + recordFields +
+        tab + "\n" + tab + "}"
+    | GenericRecord (a, b) -> 
+        let recordFields = 
+            b |> List.map recordFieldText |> String.concat ("\n" + tab + tab)
+
+        tab + "{ " + a + " |\n" +
+        tab + tab + "| " + recordFields +
+        tab + "}"
+    | FunctionTypeAnnotation (a, b) -> 
+        "(" + typeAnnotationText a + ") -> (" + typeAnnotationText b + ")"
+
+and recordFieldText (fieldName, typeAnnotation) = 
+    fieldName + " : " + typeAnnotationText typeAnnotation
+
+let typeAliasText (isFirst: bool) (isExposed: bool) (typeAlias: TypeAlias): string =
+    let generics = 
+        typeAlias.generics |> List.map ((+) " ") |> String.concat ""
+
+    let documentation = 
+        match typeAlias.documentation with
+        | Some a -> documentationText a + "\n"
+        | None -> ""
+
+    let body = 
+        typeAnnotationText typeAlias.typeAnnotation
+
+    documentation +
+    typePrefix isFirst isExposed + typeAlias.name + generics + " = \n" +
+    body
 
 let typeDeclarationText (isFirst: bool) (typeDeclaration: TypeDeclaration): string = 
-    let typePrefix_ = typePrefix isFirst
     match typeDeclaration with
-    | AliasDeclaration (a, isExposed) -> typePrefix_ isExposed
-    | CustomTypeDeclaration (a, isExposed) -> typePrefix_ isExposed
+    | AliasDeclaration (a, isExposed) -> typeAliasText isFirst isExposed a
+    | CustomTypeDeclaration (a, isExposed) -> ""
 
 let functionDeclarationText (isFirst: bool) (functionDeclaration: Declaration): string = 
     let letPrefix_ = letPrefix isFirst
@@ -89,63 +147,10 @@ let functionDeclarationText (isFirst: bool) (functionDeclaration: Declaration): 
     | InfixDeclaration (a, isExposed) -> raise (new NotImplementedException())
     | Destructuring (a, b, isExposed) -> raise (new NotImplementedException())
 
-//let declarationsText (declaration: Declaration List): string = 
-//    let types = 
-//        declaration
-//        |> List.indexed
-//        |> Helper.filterMap 
-//            (fun (index, decl) -> 
-//                match decl with
-//                | AliasDeclaration alias -> alias |> recordDeclarationText (index = 0) true |> Some
-//                | CustomTypeDeclaration customType -> Some ""
-//                | _ -> None)
-//        |> String.concat "\n\n"
-
-//    let functions = 
-//        declaration
-//        |> Helper.filterMap 
-//            (fun decl -> 
-//                match decl with
-//                | FunctionDeclaration ``function`` -> Some ``function``
-//                | _ -> None)
-//        |> List.indexed
-//        |> List.map (fun (index, func) -> functionText 0 (index = 0) true func)
-//        |> String.concat "\n\n"
-//    types + "\n" +
-//    "\n" +
-//    functions
-
-
-    //let mutable isFirstLet = true
-    //match declaration with
-    //| FunctionDeclaration ``function`` -> 
-    //    let isPrivate = 
-    //        match exposing with
-    //        | All _ -> false
-    //        | Explicit exposingList -> 
-    //            exposingList 
-    //            |> List.map getNodeValue 
-    //            |> List.exists (fun a -> ``function``.declaration |> getNodeValue |> (fun a -> a.name) |> getNodeValue |> FunctionExpose |> (=) a)
-
-    //    let name = 
-    //        if isFirstLet then
-    //            "let "
-    //        else
-    //            "and "
-        
-    //    isFirstLet <- false
-
-    //    if isPrivate then
-    //        name + "private "
-    //    else
-    //        name
-
-    //| _ -> 
-    //    ""//raise (new NotImplementedException())
 
 let fileText (file: File): string =
     let moduleDefinitionText = 
-        moduleNameText file.moduleDefinition 
+        "module " + moduleNameText file.moduleDefinition 
     
     let typeDeclarationText = 
         file.typeDeclarations 
@@ -161,7 +166,9 @@ let fileText (file: File): string =
 
     moduleDefinitionText + "\n" +
     "\n" +
-    typeDeclarationText + "\n"
+    typeDeclarationText + "\n" +
+    "\n" +
+    functionDeclarationText
 
 
 
