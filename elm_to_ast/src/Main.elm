@@ -65,8 +65,14 @@ main =
                     |> Result.toMaybe
                     |> Maybe.map parseFiles
                     |> Maybe.withDefault Nothing
-                    |> Debug.log "Result"
                     |> encodeResponse
+                    -- |> (\a ->
+                    --         let
+                    --             _ =
+                    --                 Encode.encode 0 a |> Debug.log "Result"
+                    --         in
+                    --         a
+                    --    )
                     |> response
                 )
         , update = \_ _ -> ( (), Cmd.none )

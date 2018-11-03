@@ -432,3 +432,6 @@ let fromFile (file: ElmAst.File): File =
     ; declarations = declarations
     ; comments = file.comments |> List.map nodeValue
     }
+
+let fromProject (file: ElmAst.File List): File List =
+     List.map fromFile file

@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="CommandLine.fs" />
     <Compile Include="Helper.fs" />
     <Compile Include="ElmAst.fs" />
     <Compile Include="Ast.fs" />

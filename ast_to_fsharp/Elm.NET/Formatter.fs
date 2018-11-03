@@ -171,21 +171,5 @@ let fileText (file: File): string =
     functionDeclarationText
 
 
-
-//let rec expr column expr = 
-//    match expr with
-//    | IfBlock ((_, ifExpr), (_, thenExpr), (_, elseExpr)) -> ifThenElse column ifExpr thenExpr elseExpr
-//    | _ -> ""
-
-//and ifThenElse column ifExpr thenExpr elseExpr =
-//    let offset = offsetText column
-//    "if " + (expr (column + 3) ifExpr) + " then\n" + offset +
-//    "    " + (expr (column + 4) thenExpr) + "\n" + offset +
-//    "else\n" + offset +
-//    "    " + (expr (column + 4) elseExpr) + "\n"
-
-//let caseOf column caseExpr cases =
-
-
-let transform (elmAst : File List) = 
-    0
+let projectText (files: File List): string List = 
+    List.map fileText files

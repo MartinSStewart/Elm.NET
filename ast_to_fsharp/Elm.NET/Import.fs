@@ -374,7 +374,5 @@ let decodeFile (json : JObject): File =
     }
 
 // Loads the json containing the Elm AST and parses it.
-let import text:File =
-    let json = JObject.Parse(text)
-
-    decodeFile json
+let import (text: string):File List =
+    JArray.Parse(text) |> decodeList decodeFile

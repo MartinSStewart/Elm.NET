@@ -55,18 +55,18 @@ let filterMap<'a, 'b> (filterMapFunc: 'a -> 'b Option) (list: 'a List): 'b List 
 let flip f a b = f b a
 
 
-type A = { name: string; }
+//type A = { name: string; }
 
-type B = { name: string; zzz: float }
-type C = { name: string; zzz: float; xxx: double }
-let d = LanguagePrimitives.GenericOne
+//type B = { name: string; zzz: float }
+//type C = { name: string; zzz: float; xxx: double }
+//let d = LanguagePrimitives.GenericOne
 
-let e = d + 1.5
+//let e = d + 1.5
 
 
 
-let rec inline abc (g: ^a) (h: ^a): bool =
-    let q = (^a : (member name : string) g) = (^a : (member name : string) h)
-    q = (abc h g)
+//let rec inline abc (g: ^a) (h: ^a): bool =
+//    let q = (^a : (member name : string) g) = (^a : (member name : string) h)
+//    q = (abc h g)
 
-let r = abc {name = ""; zzz = 1.0} {name = ""; zzz = 1.0}
+//let r = abc {name = ""; zzz = 1.0} {name = ""; zzz = 1.0}
