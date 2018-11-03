@@ -4,7 +4,6 @@ import Browser
 import Elm.Parser as Parser
 import Elm.Processing as Processing
 import Elm.Syntax.File as File
-import Html
 import Json.Decode as Decode
 import Json.Encode as Encode
 
@@ -57,7 +56,7 @@ decodeFlags =
 
 main : Program Decode.Value () ()
 main =
-    Browser.element
+    Platform.worker
         { init =
             \fileText ->
                 ( ()
@@ -66,10 +65,10 @@ main =
                     |> Result.toMaybe
                     |> Maybe.map parseFiles
                     |> Maybe.withDefault Nothing
+                    |> Debug.log "Result"
                     |> encodeResponse
                     |> response
                 )
-        , view = \_ -> Html.div [] []
         , update = \_ _ -> ( (), Cmd.none )
         , subscriptions = \_ -> Sub.none
         }
