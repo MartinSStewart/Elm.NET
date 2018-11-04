@@ -8,6 +8,7 @@
   <ItemGroup>
     <Compile Include="CommandLine.fs" />
     <Compile Include="Helper.fs" />
+    <Compile Include="ElmJson.fs" />
     <Compile Include="ElmAst.fs" />
     <Compile Include="Ast.fs" />
     <Compile Include="Import.fs" />

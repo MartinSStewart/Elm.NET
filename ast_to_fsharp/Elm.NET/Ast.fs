@@ -413,7 +413,10 @@ let fromDeclarations (exposing: ElmAst.Exposing) (declarations: ElmAst.Declarati
                 ( newDeclaration :: typeDeclarations
                 , functionDeclarations
                 )
-            | ElmAst.PortDeclaration b -> raise (new NotImplementedException())
+            | ElmAst.PortDeclaration b -> 
+                ( typeDeclarations
+                , functionDeclarations
+                )
             | ElmAst.InfixDeclaration b -> raise (new NotImplementedException())
             | ElmAst.Destructuring (b, c) -> raise (new NotImplementedException())
         )

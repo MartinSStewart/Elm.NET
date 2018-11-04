@@ -128,7 +128,7 @@ let typeAliasText (isFirst: bool) (isExposed: bool) (typeAlias: TypeAlias): stri
         | None -> ""
 
     let body = 
-        typeAnnotationText typeAlias.typeAnnotation
+        "    " + typeAnnotationText typeAlias.typeAnnotation
 
     documentation +
     typePrefix isFirst isExposed + typeAlias.name + generics + " = \n" +

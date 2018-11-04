@@ -2,6 +2,7 @@
 
 open System
 open System.Numerics
+open Newtonsoft.Json.Linq
 
 [<AutoOpen>]
 module NumericLiteralG = 
@@ -26,20 +27,12 @@ module NumericLiteralG =
         static member inline genericNumber (x:int64, _:bigint) = bigint x
         static member inline genericNumber (x:int64, _:decimal) = decimal x
         static member inline genericNumber (x:int64, _:Complex) = Complex.op_Implicit x
-        static member inline genericNumber (x:string, _:float32) = float32 x
-        static member inline genericNumber (x:string, _:float) = float x
-        static member inline genericNumber (x:string, _:bigint) = bigint.Parse x
-        static member inline genericNumber (x:string, _:decimal) = decimal x
-        static member inline genericNumber (x:string, _:Complex) = Complex(float x, 0.0)
 
     let inline instance (a: ^a, b: ^b, c: ^c) = ((^a or ^b or ^c) : (static member genericNumber: ^b * ^c -> ^c) (b, c))
     let inline genericNumber num = instance (GenericNumber, num, Unchecked.defaultof<'b>)
 
-    let inline FromZero () = LanguagePrimitives.GenericZero
-    let inline FromOne () = LanguagePrimitives.GenericOne
     let inline FromInt32 n = genericNumber n
     let inline FromInt64 n = genericNumber n
-    let inline FromString n = genericNumber n
 
 
 let filterMap<'a, 'b> (filterMapFunc: 'a -> 'b Option) (list: 'a List): 'b List =
@@ -54,6 +47,37 @@ let filterMap<'a, 'b> (filterMapFunc: 'a -> 'b Option) (list: 'a List): 'b List 
 
 let flip f a b = f b a
 
+let quote text = 
+    "\"" + text + "\""
+
+let decodeString (json : JToken): string =
+    json.Value<string>()
+
+let decodeOption<'a, 'b when 'b : null and 'b : equality> (decoder : 'b -> 'a) (json : 'b): Option<'a> =
+    if json = null then
+        None
+    else
+        decoder json |> Some
+
+let decodeList<'a, 'b> (decoder : 'b -> 'a) (json : JArray): List<'a> =
+    json.Values() |> List.ofSeq |> List.map decoder
+
+type Factorial = 
+    static member Fac (a: Int32): Int32 = 
+        if a = FromInt32 0 then
+            FromInt32 1
+        else
+            (Factorial.Fac (a - FromInt32 1)) * a
+
+    static member Fac (a: float): float = 
+        if a = FromInt32 0 then
+            FromInt32 1
+        else
+            (Factorial.Fac (a - FromInt32 1)) * a
+
+
+let zz = Factorial.Fac 5
+let yy = Factorial.Fac 5.5
 
 //type A = { name: string; }
 

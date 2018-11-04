@@ -5,30 +5,30 @@ open Xunit
 open Import
 open ElmAst
 
-[<Fact>]
-let ``Decode simple Elm AST json`` () =
-    let expected = 
-        { moduleDefinition =
-            ( { start = {row = 1; column = 1}; ``end`` = {row = 1; column = 36} }
-            , NormalModule {moduleName = ({start = {row = 1; column = 8}; ``end`` = {row = 1; column = 12}}, ["Test"])
-        ; exposingList =
-            ( { start = {row = 1; column = 13}; ``end`` = {row = 1; column = 36} }
-            , Explicit [({start = {row = 1; column = 23}; ``end`` = {row = 1; column = 35}}, FunctionExpose "initialModel")])}
-            )
-        ; imports = []
-        ; declarations = []
-        ; comments = [] 
-        }
-    let result = ExampleAst.json |> import 
+//[<Fact>]
+//let ``Decode simple Elm AST json`` () =
+//    let expected = 
+//        { moduleDefinition =
+//            ( { start = {row = 1; column = 1}; ``end`` = {row = 1; column = 36} }
+//            , NormalModule {moduleName = ({start = {row = 1; column = 8}; ``end`` = {row = 1; column = 12}}, ["Test"])
+//        ; exposingList =
+//            ( { start = {row = 1; column = 13}; ``end`` = {row = 1; column = 36} }
+//            , Explicit [({start = {row = 1; column = 23}; ``end`` = {row = 1; column = 35}}, FunctionExpose "initialModel")])}
+//            )
+//        ; imports = []
+//        ; declarations = []
+//        ; comments = [] 
+//        }
+//    let result = ExampleAst.json |> import 
      
-    Assert.Equal(expected, result)
+//    Assert.Equal(expected, result)
 
-[<Fact>]
-let ``Generate F# code`` () =
-    let result = 
-        ExampleAst.json 
-        |> import 
-        |> Ast.fromFile 
-        |> Formatter.fileText
+//[<Fact>]
+//let ``Generate F# code`` () =
+//    let result = 
+//        ExampleAst.json 
+//        |> import 
+//        |> Ast.fromFile 
+//        |> Formatter.fileText
 
-    0
+//    0

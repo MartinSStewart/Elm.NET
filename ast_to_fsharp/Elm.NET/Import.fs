@@ -4,18 +4,8 @@ open Newtonsoft.Json
 open ElmAst
 open Newtonsoft.Json.Linq
 open System
+open Helper
 
-let decodeString (json : JToken): string =
-    json.Value<string>()
-
-let decodeOption<'a, 'b when 'b : null and 'b : equality> (decoder : 'b -> 'a) (json : 'b): Option<'a> =
-    if json = null then
-        None
-    else
-        decoder json |> Some
-
-let decodeList<'a, 'b> (decoder : 'b -> 'a) (json : JArray): List<'a> =
-    json.Values() |> List.ofSeq |> List.map decoder
 
 let decodeRange (json : JArray): Range = 
     let values = decodeList int json

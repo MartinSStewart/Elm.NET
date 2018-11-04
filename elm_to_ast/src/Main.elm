@@ -36,6 +36,13 @@ parseFiles codeFiles =
             |> Just
 
     else
+        let
+            _ =
+                codeFiles
+                    |> List.map Parser.parse
+                    |> List.indexedMap (\index a -> Result.map (\b -> index) a)
+                    |> Debug.log ""
+        in
         Nothing
 
 
@@ -54,6 +61,15 @@ decodeFlags =
     Decode.list Decode.string
 
 
+debugLogMap : String -> (a -> String) -> a -> a
+debugLogMap tag log value =
+    let
+        _ =
+            value |> log |> Debug.log tag
+    in
+    value
+
+
 main : Program Decode.Value () ()
 main =
     Platform.worker
@@ -63,8 +79,7 @@ main =
                 , fileText
                     |> Decode.decodeValue decodeFlags
                     |> Result.toMaybe
-                    |> Maybe.map parseFiles
-                    |> Maybe.withDefault Nothing
+                    |> Maybe.andThen parseFiles
                     |> encodeResponse
                     -- |> (\a ->
                     --         let
