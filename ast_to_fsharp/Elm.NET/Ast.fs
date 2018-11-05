@@ -390,9 +390,16 @@ let isExposed (exposing: ElmAst.Exposing) (declaration: ElmAst.Declaration) =
                     | _ -> false
                 )
                 exposeList
-        | ElmAst.PortDeclaration b -> raise (new NotImplementedException())
-        | ElmAst.InfixDeclaration b -> raise (new NotImplementedException())
-        | ElmAst.Destructuring (b, c) -> raise (new NotImplementedException())
+        | ElmAst.PortDeclaration b -> true
+        | ElmAst.InfixDeclaration b -> false
+        | ElmAst.Destructuring (b, c) -> false
+
+let fromInfix (infix: ElmAst.Infix): Infix = 
+    { direction = infix.direction |> nodeValue |> fromInfixDirection
+    ; precedence = nodeValue infix.precedence
+    ; operator = nodeValue infix.operator
+    ; ``function`` = nodeValue infix.``function``
+    }
 
 let fromDeclarations (exposing: ElmAst.Exposing) (declarations: ElmAst.Declaration List): (TypeDeclaration List * Declaration List) =
     List.fold 
@@ -417,7 +424,11 @@ let fromDeclarations (exposing: ElmAst.Exposing) (declarations: ElmAst.Declarati
                 ( typeDeclarations
                 , functionDeclarations
                 )
-            | ElmAst.InfixDeclaration b -> raise (new NotImplementedException())
+            | ElmAst.InfixDeclaration b -> 
+                let newDeclaration = InfixDeclaration (fromInfix b, isExposed exposing a)
+                ( typeDeclarations
+                , newDeclaration :: functionDeclarations
+                )
             | ElmAst.Destructuring (b, c) -> raise (new NotImplementedException())
         )
         ([], [])

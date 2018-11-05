@@ -27,23 +27,25 @@ parseFiles codeFiles =
                 |> List.map Parser.parse
                 |> List.filterMap Result.toMaybe
     in
-    if List.length rawFiles == List.length codeFiles then
-        rawFiles
-            |> List.foldl
-                (\a b -> Processing.addFile a b)
-                Processing.init
-            |> (\a -> List.map (Processing.process a) rawFiles)
-            |> Just
+    --if List.length rawFiles == List.length codeFiles then
+    rawFiles
+        |> List.foldl
+            (\a b -> Processing.addFile a b)
+            Processing.init
+        |> (\a -> List.map (Processing.process a) rawFiles)
+        |> Just
 
-    else
-        let
-            _ =
-                codeFiles
-                    |> List.map Parser.parse
-                    |> List.indexedMap (\index a -> Result.map (\b -> index) a)
-                    |> Debug.log ""
-        in
-        Nothing
+
+
+-- else
+--     let
+--         _ =
+--             codeFiles
+--                 |> List.map Parser.parse
+--                 |> List.indexedMap (\index a -> Result.map (\b -> index) a)
+--                 |> Debug.log ""
+--     in
+--     Nothing
 
 
 encodeResponse : Response -> Encode.Value
@@ -81,13 +83,6 @@ main =
                     |> Result.toMaybe
                     |> Maybe.andThen parseFiles
                     |> encodeResponse
-                    -- |> (\a ->
-                    --         let
-                    --             _ =
-                    --                 Encode.encode 0 a |> Debug.log "Result"
-                    --         in
-                    --         a
-                    --    )
                     |> response
                 )
         , update = \_ _ -> ( (), Cmd.none )

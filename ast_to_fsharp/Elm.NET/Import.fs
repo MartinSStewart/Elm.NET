@@ -30,7 +30,9 @@ let decodeTopLevelExpose (json : JObject): TopLevelExpose =
     let moduleType = json.Value<string>("type")
     match moduleType with
     | "infix" -> 
-        json.Value<string>("infix") 
+        json.Value<JObject>("infix") 
+        |> (fun a -> a.Value<JToken>("name"))
+        |> decodeString
         |> InfixExpose
     | "function" -> 
         json.Value<JObject>("function") 
@@ -66,10 +68,10 @@ let decodeDefaultModuleData (json : JObject): DefaultModuleData =
     }
 
 let decodeEffectModuleData (json : JObject): EffectModuleData =
-    { moduleName = decodeNode decodeModuleName (json.Value<JObject>("moduleName"))
-    ; exposingList = decodeNode decodeExposing (json.Value<JObject>("exposingList"))
-    ; command = raise (new NotImplementedException())
-    ; subscription = raise (new NotImplementedException())
+    { moduleName = json.Value<JObject>("moduleName") |> decodeNode decodeModuleName
+    ; exposingList = json.Value<JObject>("exposingList") |> decodeNode decodeExposing
+    ; command = json.Value<JObject>("command") |> decodeOption (decodeNode decodeString)
+    ; subscription = json.Value<JObject>("subscription") |> decodeOption (decodeNode decodeString)
     }
 
 let decodeModule (json : JObject): Module =
@@ -153,6 +155,9 @@ let decodeChar (json : JToken): char =
 let decodeInt (json : JToken): int64 =
     json.Value<int64>()
 
+let decodeInt32 (json : JToken): int32 =
+    json.Value<int32>()
+
 let decodeHex (json : JToken): int64 =
     decodeInt json
 
@@ -169,13 +174,33 @@ let rec decodePattern (json : JObject): Pattern =
     match moduleType with
     | "all" -> AllPattern
     | "unit" -> UnitPattern
-    | "char" -> json.Value<JToken>("char") |> decodeChar |> CharPattern
-    | "string" -> json.Value<JToken>("string") |> decodeString |> StringPattern
-    | "hex" -> json.Value<JToken>("hex") |> decodeHex |> HexPattern
-    | "int" -> json.Value<JToken>("int") |> decodeInt |> IntPattern
-    | "float" -> json.Value<JToken>("float") |> decodeDouble |> FloatPattern
+    | "char" -> 
+        json.Value<JObject>("char") 
+        |> (fun a -> a.Value<JToken>("value")) 
+        |> decodeChar 
+        |> CharPattern
+    | "string" -> 
+        json.Value<JObject>("string") 
+        |> (fun a -> a.Value<JToken>("value")) 
+        |> decodeString 
+        |> StringPattern
+    | "hex" -> 
+        json.Value<JObject>("hex") 
+        |> (fun a -> a.Value<JToken>("value")) 
+        |> decodeHex 
+        |> HexPattern
+    | "int" -> 
+        json.Value<JObject>("int") 
+        |> (fun a -> a.Value<JToken>("value")) 
+        |> decodeInt 
+        |> IntPattern
+    | "float" -> 
+        json.Value<JObject>("float") 
+        |> (fun a -> a.Value<JToken>("value")) 
+        |>  decodeDouble 
+        |> FloatPattern
     | "tuple" -> 
-        json.Value<JToken>("tuple") 
+        json.Value<JObject>("tuple") 
         |> (fun a -> a.Value<JArray>("value")) 
         |> decodeList (decodeNode decodePattern) 
         |> TuplePattern
@@ -184,22 +209,40 @@ let rec decodePattern (json : JObject): Pattern =
         |> (fun a -> a.Value<JArray>("value")) 
         |> decodeList (decodeNode decodeString) 
         |> RecordPattern
-    //| "uncons" -> json.Value<JObject>("uncons") |> decodeList (decodeNode decodeString) |> UnConsPattern
-    | "list" -> json.Value<JArray>("list") |> decodeList (decodeNode decodePattern) |> ListPattern
-    | "var" -> json.Value<JToken>("var") |> (fun varJson -> varJson.Value<JToken>("value")) |> decodeString |> VarPattern
+    | "uncons" -> 
+        let unconsJson = json.Value<JObject>("uncons")
+        ( unconsJson.Value<JObject>("left") |> decodeNode decodePattern
+        , unconsJson.Value<JObject>("right") |> decodeNode decodePattern
+        ) 
+        |> UnConsPattern
+    | "list" -> 
+        json.Value<JObject>("list") 
+        |> (fun a -> a.Value<JArray>("value")) 
+        |> decodeList (decodeNode decodePattern) 
+        |> ListPattern
+    | "var" -> 
+        json.Value<JObject>("var") 
+        |> (fun varJson -> varJson.Value<JToken>("value")) 
+        |> decodeString 
+        |> VarPattern
     | "named" -> 
         let namedJson = json.Value<JObject>("named")
         ( namedJson.Value<JObject>("qualified") |> decodeQualifiedNameRef
         , namedJson.Value<JArray>("patterns") |> decodeList (decodeNode decodePattern)
         )
         |> NamedPattern
-    //| "as" -> AsPattern of Node<Pattern> * Node<string>
+    | "as" -> 
+        let namedJson = json.Value<JObject>("as")
+        ( namedJson.Value<JObject>("pattern") |> decodeNode decodePattern
+        , namedJson.Value<JObject>("name") |> decodeNode decodeString
+        )
+        |> AsPattern
     | "parentisized" -> 
         json.Value<JObject>("parentisized") 
         |> (fun a -> a.Value<JObject>("value")) 
         |> decodeNode decodePattern 
         |> ParenthesizedPattern
-    | _ -> raise (new NotImplementedException())
+    | _ ->  raise (new NotImplementedException())
 
 let decodeInfixDirection (json : JToken): InfixDirection =
     match decodeString json with
@@ -337,7 +380,11 @@ let decodeType (json : JObject): ElmAst.Type =
     }
 
 let decodeInfix (json : JObject): Infix =
-    raise (new NotImplementedException())
+    { direction = json.Value<JObject>("direction") |> decodeNode decodeInfixDirection
+    ; precedence = json.Value<JObject>("precedence") |> decodeNode decodeInt32
+    ; operator = json.Value<JObject>("operator") |> decodeNode decodeString
+    ; ``function`` = json.Value<JObject>("function") |> decodeNode decodeString
+    }
 
 let decodeDeclaration (json : JObject): Declaration =
     let moduleType = json.Value<string>("type")

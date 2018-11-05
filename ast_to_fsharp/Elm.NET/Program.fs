@@ -39,10 +39,9 @@ let main argv =
             )
         |> List.concat
 
-    //let allFiles = userFiles |> List.append packageFiles |> List.map Helper.quote |> String.concat " "
-    let allFiles = 
-        (Helper.quote @"C:\Users\Martin\AppData\Roaming\elm\0.19.0\package\stil4m\elm-syntax\7.0.2\src\Elm\Processing.elm")
-    let command = "node elm.js " + allFiles
+    let allFiles = userFiles |> List.append packageFiles |> String.concat "\n"
+    do File.WriteAllText("input.txt", allFiles)
+    let command = "node elm.js"
     let result = run command
     let searchText = "[{"
     let index = result.IndexOf(searchText)
