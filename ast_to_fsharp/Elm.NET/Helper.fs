@@ -50,6 +50,9 @@ let flip f a b = f b a
 let quote text = 
     "\"" + text + "\""
 
+let quoteWith (left: string) (right: string) (text: string): string = 
+    left + text + right
+
 let decodeString (json : JToken): string =
     json.Value<string>()
 
